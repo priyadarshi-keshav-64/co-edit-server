@@ -1,0 +1,13 @@
+version: '1'
+services:
+  co-edit:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    ports: 
+      - "5000:5000"
+    volumes:
+      - /app/node_modules
+      - .:/app  
+    env_file:
+      - .env

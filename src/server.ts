@@ -23,6 +23,7 @@ io.on("connection", (socket) => {
         })
 
         socket.on("save-document", async data => {
+            console.log({ deltaOps: data.ops })
             await Document.findByIdAndUpdate({ _id: documentId }, { content: data?.ops })
         })
     })
