@@ -20,6 +20,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Install AWS Elastic Beanstalk CLI
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install awsebcli --upgrade
+          eb --version  # Check if EB CLI is installed correctly
+
       - name: Login to Amazon ECR
         id: login-ecr
         run: |
