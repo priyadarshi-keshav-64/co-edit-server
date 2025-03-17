@@ -1,59 +1,63 @@
-name: Deploy to AWS Elastic Beanstalk
+name: Deploy to Elastic Beanstalk (Docker)
 
 on:
   push:
     branches:
-      - master  # Change this if deploying from a different branch
+      - master  # Trigger deployment when code is pushed to master
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
+      - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Install AWS Elastic Beanstalk CLI
-        run: |
-          sudo apt-get update && sudo apt-get install -y python3-pip
-          python3 -m pip install --upgrade pip
-          python3 -m pip install awsebcli --upgrade
-          eb --version  # Check if EB CLI is installed correctly
-
       - name: Login to Amazon ECR
-        id: login-ecr
         run: |
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
-      - name: Build and Push Docker Image to ECR
+      - name: Build and Push Docker Image
+        env:
+          IMAGE_TAG: latest
+          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         run: |
-          REPO_NAME="co-edit-server" # Change this to your ECR repo name
-          IMAGE_TAG=$(echo $GITHUB_SHA | head -c 7)
-          aws ecr create-repository --repository-name $REPO_NAME || true
-          docker build -t $REPO_NAME:$IMAGE_TAG -f Dockerfile.dev .
-          docker tag $REPO_NAME:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$REPO_NAME:$IMAGE_TAG
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$REPO_NAME:$IMAGE_TAG
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Generate Dockerrun.aws.json
+        run: |
+          echo '{
+            "AWSEBDockerrunVersion": "1",
+            "Image": {
+              "Name": "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest",
+              "Update": "true"
+            },
+            "Ports": [
+              {
+                "ContainerPort": "3000"
+              }
+            ]
+          }' > Dockerrun.aws.json
+
+      - name: Package Deployment Bundle
+        run: zip -r deploy.zip Dockerrun.aws.json .platform
 
       - name: Deploy to Elastic Beanstalk
         run: |
-          eb init my-app --platform docker --region $AWS_REGION
+          aws elasticbeanstalk create-application-version \
+            --application-name ${{ secrets.EB_APP_NAME }} \
+            --version-label $GITHUB_SHA \
+            --source-bundle S3Bucket=${{ secrets.EB_BUCKET }},S3Key=deploy.zip
 
-          # Check if an environment already exists
-          if ! eb status my-app-env &>/dev/null; then
-            echo "Creating a new environment..."
-            eb create my-app-env
-          else
-            echo "Using existing environment..."
-          fi
-
-          # Set the default environment
-          eb use my-app-env
-          eb deploy
-
+          aws elasticbeanstalk update-environment \
+            --environment-name ${{ secrets.EB_ENV_NAME }} \
+            --version-label $GITHUB_SHA
