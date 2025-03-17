@@ -8,14 +8,22 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
 const socket_io_1 = require("socket.io");
-const database_config_1 = require("./config/database.config");
-const document_model_1 = require("./models/document.model");
+const database_config_1 = __importDefault(require("./config/database.config"));
+const document_model_1 = __importDefault(require("./models/document.model"));
+const router_1 = __importDefault(require("./routes/router"));
 (0, database_config_1.default)();
-const io = new socket_io_1.Server(5000, {
+const app = (0, express_1.default)();
+app.use(router_1.default);
+const server = app.listen(5000, () => console.log(`Express Server running on PORT 5000`));
+const io = new socket_io_1.Server(server, {
     cors: {
-        allowedHeaders: "http://localhost:5173",
+        allowedHeaders: "*",
         credentials: true,
         methods: ["GET", "POST"]
     }
@@ -30,7 +38,7 @@ io.on("connection", (socket) => {
             socket.broadcast.to(documentId).emit("receive-changes", data);
         });
         socket.on("save-document", (data) => __awaiter(void 0, void 0, void 0, function* () {
-            console.log({ dataOps: data.ops });
+            console.log({ deltaOps: data.ops });
             yield document_model_1.default.findByIdAndUpdate({ _id: documentId }, { content: data === null || data === void 0 ? void 0 : data.ops });
         }));
     }));

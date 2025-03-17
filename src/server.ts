@@ -1,10 +1,17 @@
+import express from "express"
 import { Server } from "socket.io"
 import connectDB from "./config/database.config";
 import Document from "./models/document.model";
+import router from "./routes/router";
 connectDB();
-const io = new Server(5000, {
+
+const app = express()
+app.use(router)
+const server = app.listen(5000, () => console.log(`Express Server running on PORT 5000`))
+
+const io = new Server(server, {
     cors: {
-        allowedHeaders: "http://localhost:5173",
+        allowedHeaders: "*",
         credentials: true,
         methods: ["GET", "POST"]
     }
