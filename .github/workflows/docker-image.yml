@@ -44,4 +44,16 @@ jobs:
       - name: Deploy to Elastic Beanstalk
         run: |
           eb init my-app --platform docker --region $AWS_REGION
+
+          # Check if an environment already exists
+          if ! eb status my-app-env &>/dev/null; then
+            echo "Creating a new environment..."
+            eb create my-app-env
+          else
+            echo "Using existing environment..."
+          fi
+
+          # Set the default environment
+          eb use my-app-env
           eb deploy
+
