@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: co-edit-server
+    env: node
+    plan: free  # Change to "starter" or "standard" for better performance
+    buildCommand: "npm install"
+    startCommand: "npm start"  # Change as per your package.json
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000  # Ensure your app listens on this port
+      - key: DATABASE
+        sync: false  # Securely set in Render dashboard
+    autoDeploy: true  # Set to false if you want to manually deploy
+    region: oregon  # Change based on your location preference

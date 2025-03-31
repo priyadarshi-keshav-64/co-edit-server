@@ -7,7 +7,7 @@ connectDB();
 
 const app = express()
 app.use(router)
-const server = app.listen(5000, () => console.log(`Express Server running on PORT 5000`))
+const server = app.listen(process.env.PORT, () => console.log(`Express Server running on PORT ${process.env.PORT}`))
 
 const io = new Server(server, {
     cors: {
